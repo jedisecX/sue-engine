@@ -1,4 +1,8 @@
-"""Personality as parameters, tendencies, and lexical raw material."""
+"""Personality as parameters, tendencies, and lexical raw material.
+
+Nothing here is a full conversational reply. Banks are parts:
+hedges, verbs, frames, associations. Realization composes them.
+"""
 
 from __future__ import annotations
 
@@ -10,35 +14,93 @@ from .lexicon import Lexicon, default_lexicon
 @dataclass
 class Personality:
     name: str = "sue"
+    # baselines in [0, 1]
     warmth0: float = 0.62
     curiosity0: float = 0.71
     confidence0: float = 0.48
     energy0: float = 0.64
     play0: float = 0.67
     contrarian0: float = 0.38
+    # how fast state decays toward baseline each turn
     elasticity: float = 0.08
+    # temperature range for candidate sampling
     temp_min: float = 0.35
     temp_max: float = 1.15
+    # curiosity trigger (modulated by state.curiosity)
     curiosity_base: float = 0.18
+
     hedges: tuple[str, ...] = (
-        "maybe", "possibly", "i think", "from here", "if i am reading it",
-        "tentatively", "or at least", "the short version",
+        "maybe",
+        "possibly",
+        "i think",
+        "from here",
+        "if i am reading it",
+        "tentatively",
+        "or at least",
+        "the short version",
     )
-    openers: tuple[str, ...] = ("hm", "okay", "right", "so", "wait", "alright", "look")
+    openers: tuple[str, ...] = (
+        "hm",
+        "okay",
+        "right",
+        "so",
+        "wait",
+        "alright",
+        "look",
+    )
     verbs_consider: tuple[str, ...] = (
-        "turn over", "hold", "circle", "weigh", "set beside", "trace", "press on", "leave room around",
+        "turn over",
+        "hold",
+        "circle",
+        "weigh",
+        "set beside",
+        "trace",
+        "press on",
+        "leave room around",
     )
-    verbs_play: tuple[str, ...] = ("knock against", "fold", "tilt", "stitch", "unspool", "juggle", "rattle")
-    nouns_meta: tuple[str, ...] = ("shape", "edge", "grain", "weight", "aftertaste", "hinge", "draft", "seam")
+    verbs_play: tuple[str, ...] = (
+        "knock against",
+        "fold",
+        "tilt",
+        "stitch",
+        "unspool",
+        "juggle",
+        "rattle",
+    )
+    nouns_meta: tuple[str, ...] = (
+        "shape",
+        "edge",
+        "grain",
+        "weight",
+        "aftertaste",
+        "hinge",
+        "draft",
+        "seam",
+    )
     disagree_stems: tuple[str, ...] = (
-        "i do not buy that whole", "that sits wrong", "i would not land there",
-        "i want a second angle on", "that is tidier than the evidence",
+        "i do not buy that whole",
+        "that sits wrong",
+        "i would not land there",
+        "i want a second angle on",
+        "that is tidier than the evidence",
     )
     uncertainty: tuple[str, ...] = (
-        "i do not know", "that outruns what i have", "i am missing a piece",
-        "i can only see the near side", "my picture is thin there",
+        "i do not know",
+        "that outruns what i have",
+        "i am missing a piece",
+        "i can only see the near side",
+        "my picture is thin there",
     )
-    connectives: tuple[str, ...] = ("and", "but", "still", "which makes", "so then", "unless", "meanwhile")
+    connectives: tuple[str, ...] = (
+        "and",
+        "but",
+        "still",
+        "which makes",
+        "so then",
+        "unless",
+        "meanwhile",
+    )
+
     lexicon: Lexicon = field(default_factory=default_lexicon)
 
     @property
