@@ -109,7 +109,11 @@ class Sue:
         if "name" in tokens and tokens:
             import re
 
-            m = re.search(r"(?:my name is|i am|i'm|call me)\s+([A-Za-z][A-Za-z0-9_-]{1,24})", parsed.raw, re.I)
+            m = re.search(
+                r"(?:my name is|i am|i'm|call me)\s+([A-Za-z][A-Za-z0-9_-]{1,24})",
+                parsed.raw,
+                re.I,
+            )
             if m:
                 self.memory.user_name = m.group(1)
                 self.memory.add(f"user name is {m.group(1)}", kind="decision", importance=0.85)
@@ -149,13 +153,30 @@ class Sue:
         self.last_candidates = []
         self.persist()
 
-    def forget(self) -> None:
+    def forget(self, kind: str | None = None) -> int:
+        if kind:
+            n = self.memory.forget_kind(kind)
+            self.persist()
+            return n
         self.memory.forget_all()
         self.memory.user_name = None
         self.state.unresolved.clear()
         self.state.goals.clear()
         self.state.topic = ""
         self.persist()
+        return 0
+
+    def ingest_feeds(self, feeds_path: Path | None = None, fetch=None):
+        from .ingest import ingest, load_feeds
+
+        path = feeds_path or self.memory.path.with_name("feeds.json")
+        feeds = load_feeds(path)
+        report = ingest(self.memory, feeds, fetch=fetch, state=self.state)
+        try:
+            self.persist()
+        except OSError:
+            pass
+        return report, feeds
 
     def inspect_state(self) -> dict:
         d = self.state.public_summary()
