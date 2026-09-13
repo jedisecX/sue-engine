@@ -1,0 +1,12 @@
+[
+  {
+    "url": "https://feeds.bbci.co.uk/news/rss.xml",
+    "tag": "world",
+    "max": 8
+  },
+  {
+    "url": "https://www.cisa.gov/news.xml",
+    "tag": "cyber",
+    "max": 8
+  }
+]

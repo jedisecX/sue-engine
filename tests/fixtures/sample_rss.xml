@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Fixture Wire</title>
+    <item>
+      <guid>guid-river-1</guid>
+      <title>River levels rise under the night bridge</title>
+      <link>https://example.test/river</link>
+      <description>High water moved under the old bridge after dusk.</description>
+    </item>
+    <item>
+      <guid>guid-lantern-2</guid>
+      <title>Lantern recall leaves drawers empty</title>
+      <description>A small maker pulled a batch of faulty lanterns.</description>
+    </item>
+    <item>
+      <title>Duplicate river piece</title>
+      <guid>guid-river-1</guid>
+      <description>Should be skipped on second ingest.</description>
+    </item>
+  </channel>
+</rss>
