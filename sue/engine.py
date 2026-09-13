@@ -91,9 +91,17 @@ class Sue:
         mem_tokens = []
         for t in self.memory.traces[-8:]:
             mem_tokens.extend(t.tokens[:6])
-        self.last_learned = self.personality.lexicon.learn_context(parsed.content, mem_tokens)
+        chat_words = list(parsed.content) + list(parsed.tokens)
+        self.last_learned = list(dict.fromkeys(
+            self.personality.lexicon.learn_context(chat_words, mem_tokens)
+        ))
         if self.last_learned:
             self.state.curiosity = min(1.0, self.state.curiosity + 0.04)
+            lex = self.personality.lexicon
+            for w in self.last_learned[:6]:
+                neigh = lex.related(w, limit=4)
+                line = f"word:{w}" + ((" near " + " ".join(neigh)) if neigh else "")
+                self.memory.add(line, kind="lex", importance=0.55)
         cands, thought = self.reasoner.consider(parsed, self.state, self.memory)
         self.last_candidates = cands
         self.last_thought = thought
@@ -199,6 +207,46 @@ class Sue:
 
     def inspect_memory(self, limit: int = 12) -> list[dict]:
         return self.memory.public_list(limit=limit)
+
+    def inspect_lexicon(self, query: str | None = None) -> dict:
+        lex = self.personality.lexicon
+        chat, seen = [], set()
+        for src in (list(self.state.last_user_tokens), list(getattr(self.state, "last_user", "").split())):
+            for w in src:
+                w = w.lower().strip("..,!?\"'")
+                if len(w) >= 3 and w not in seen:
+                    seen.add(w)
+                    chat.append(w)
+        for t in self.memory.traces[-16:]:
+            if t.kind not in {"user", "news", "topic", "lex"}:
+                continue
+            for w in t.tokens[:10]:
+                if len(w) >= 3 and w not in seen:
+                    seen.add(w)
+                    chat.append(w)
+        if query:
+            q = query.lower()
+            return {
+                "query": q,
+                "class": lex.word_class(q),
+                "known": lex.knows(q),
+                "neighbors": lex.related(q, limit=10),
+                "learned": q in lex.learned,
+            }
+        rows = [{
+            "word": w,
+            "class": lex.word_class(w) or "-",
+            "known": lex.knows(w),
+            "neighbors": lex.related(w, limit=4),
+        } for w in chat[:24]]
+        return {
+            "size": lex.size(),
+            "just_acquired": list(self.last_learned),
+            "learned": list(lex.learned[-20:]),
+            "topic": self.state.topic,
+            "topic_neighbors": lex.related(self.state.topic) if self.state.topic else [],
+            "from_chat": rows,
+        }
 
     def inspect_news(self, limit: int = 12) -> list[dict]:
         rows = []
