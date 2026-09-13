@@ -123,6 +123,14 @@ class Memory:
         self.traces.clear()
         self.dirty = True
 
+    def forget_kind(self, kind: str) -> int:
+        before = len(self.traces)
+        self.traces = [t for t in self.traces if t.kind != kind]
+        dropped = before - len(self.traces)
+        if dropped:
+            self.dirty = True
+        return dropped
+
     def retrieve(self, query_tokens: list[str], k: int = 4, kinds: set[str] | None = None) -> list[Trace]:
         if not self.traces:
             return []
@@ -162,12 +170,5 @@ class Memory:
     def public_list(self, limit: int = 12) -> list[dict[str, Any]]:
         rows = []
         for t in self.traces[-limit:]:
-            rows.append(
-                {
-                    "id": t.id,
-                    "kind": t.kind,
-                    "importance": round(t.importance, 2),
-                    "text": t.text,
-                }
-            )
+            rows.append({"id": t.id, "kind": t.kind, "importance": round(t.importance, 2), "text": t.text})
         return rows
