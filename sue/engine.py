@@ -6,6 +6,7 @@ import random
 from pathlib import Path
 
 from .generate import ComposeRealizer
+from .lexicon import Lexicon
 from .memory import Memory
 from .parse import parse
 from .personality import Personality
@@ -15,9 +16,14 @@ from .state import State
 
 class Sue:
     def __init__(self, memory_path: Path | None = None, seed: int | None = None):
-        self.personality = Personality()
+        mem_path = memory_path or Path("sue_memory.json")
+        lex_path = mem_path.with_name("lexicon.json")
+        self.lex_path = lex_path
+        self.personality = Personality(lexicon=Lexicon(extra=lex_path if lex_path.exists() else None))
+        self.personality.lexicon.path = lex_path
+        self.last_learned: list[str] = []
         self.rng = random.Random(seed)
-        self.memory = Memory.load(memory_path or Path("sue_memory.json"))
+        self.memory = Memory.load(mem_path)
         self.state = State(
             warmth=self.personality.warmth0,
             curiosity=self.personality.curiosity0,
@@ -51,6 +57,10 @@ class Sue:
     def persist(self) -> None:
         import json
         self.memory.save()
+        try:
+            self.personality.lexicon.save(self.lex_path)
+        except OSError:
+            pass
         blob = self.state.to_json()
         tmp = self._state_blob_path().with_suffix(".json.tmp")
         tmp.write_text(json.dumps(blob, indent=2), encoding="utf-8")
@@ -78,6 +88,12 @@ class Sue:
         elif parsed.topic_hint and not self.state.topic:
             self.state.topic = parsed.topic_hint
         self._maybe_name(parsed)
+        mem_tokens = []
+        for t in self.memory.traces[-8:]:
+            mem_tokens.extend(t.tokens[:6])
+        self.last_learned = self.personality.lexicon.learn_context(parsed.content, mem_tokens)
+        if self.last_learned:
+            self.state.curiosity = min(1.0, self.state.curiosity + 0.04)
         cands, thought = self.reasoner.consider(parsed, self.state, self.memory)
         self.last_candidates = cands
         self.last_thought = thought
@@ -134,7 +150,7 @@ class Sue:
     def reset_session(self) -> None:
         p = self.personality
         kept_goals = list(self.state.goals)
-        wire = list(self.state.wire)
+        wire = list(getattr(self.state, "wire", []))
         self.state = State(
             warmth=p.warmth0, curiosity=p.curiosity0, confidence=p.confidence0,
             energy=p.energy0, play=p.play0, contrarian=p.contrarian0,
@@ -148,7 +164,7 @@ class Sue:
     def forget(self, kind: str | None = None) -> int:
         if kind:
             n = self.memory.forget_kind(kind)
-            if kind == "news":
+            if kind == "news" and hasattr(self.state, "wire"):
                 self.state.wire.clear()
             self.persist()
             return n
@@ -157,7 +173,8 @@ class Sue:
         self.state.unresolved.clear()
         self.state.goals.clear()
         self.state.topic = ""
-        self.state.wire.clear()
+        if hasattr(self.state, "wire"):
+            self.state.wire.clear()
         self.persist()
         return 0
 
