@@ -42,7 +42,6 @@ class Sue:
             return
         try:
             import json
-
             data = json.loads(p.read_text(encoding="utf-8"))
             if isinstance(data, dict):
                 self.state = State.from_json(data, fallback=self.state)
@@ -51,7 +50,6 @@ class Sue:
 
     def persist(self) -> None:
         import json
-
         self.memory.save()
         blob = self.state.to_json()
         tmp = self._state_blob_path().with_suffix(".json.tmp")
@@ -108,11 +106,9 @@ class Sue:
         tokens = parsed.tokens
         if "name" in tokens and tokens:
             import re
-
             m = re.search(
                 r"(?:my name is|i am|i'm|call me)\s+([A-Za-z][A-Za-z0-9_-]{1,24})",
-                parsed.raw,
-                re.I,
+                parsed.raw, re.I,
             )
             if m:
                 self.memory.user_name = m.group(1)
@@ -128,7 +124,7 @@ class Sue:
             if len(parsed.content) >= 3:
                 imp += 0.1
             self.memory.add(parsed.raw, kind="user", importance=imp)
-        if thought.intent in {"connect", "play"} and thought.topic:
+        if thought.intent in {"connect", "play", "recall"} and thought.topic:
             self.memory.add(f"topic:{thought.topic}", kind="topic", importance=0.4)
         if thought.intent == "disagree":
             self.memory.add(f"disputed:{thought.topic}", kind="decision", importance=0.55)
@@ -138,16 +134,12 @@ class Sue:
     def reset_session(self) -> None:
         p = self.personality
         kept_goals = list(self.state.goals)
+        wire = list(self.state.wire)
         self.state = State(
-            warmth=p.warmth0,
-            curiosity=p.curiosity0,
-            confidence=p.confidence0,
-            energy=p.energy0,
-            play=p.play0,
-            contrarian=p.contrarian0,
-            session=self.state.session + 1,
-            created=self.state.created,
-            goals=kept_goals,
+            warmth=p.warmth0, curiosity=p.curiosity0, confidence=p.confidence0,
+            energy=p.energy0, play=p.play0, contrarian=p.contrarian0,
+            session=self.state.session + 1, created=self.state.created,
+            goals=kept_goals, wire=wire,
         )
         self.last_thought = None
         self.last_candidates = []
@@ -156,6 +148,8 @@ class Sue:
     def forget(self, kind: str | None = None) -> int:
         if kind:
             n = self.memory.forget_kind(kind)
+            if kind == "news":
+                self.state.wire.clear()
             self.persist()
             return n
         self.memory.forget_all()
@@ -163,12 +157,12 @@ class Sue:
         self.state.unresolved.clear()
         self.state.goals.clear()
         self.state.topic = ""
+        self.state.wire.clear()
         self.persist()
         return 0
 
     def ingest_feeds(self, feeds_path: Path | None = None, fetch=None):
         from .ingest import ingest, load_feeds
-
         path = feeds_path or self.memory.path.with_name("feeds.json")
         feeds = load_feeds(path)
         report = ingest(self.memory, feeds, fetch=fetch, state=self.state)
@@ -188,3 +182,10 @@ class Sue:
 
     def inspect_memory(self, limit: int = 12) -> list[dict]:
         return self.memory.public_list(limit=limit)
+
+    def inspect_news(self, limit: int = 12) -> list[dict]:
+        rows = []
+        for t in self.memory.traces:
+            if t.kind == "news":
+                rows.append({"id": t.id, "kind": t.kind, "importance": round(t.importance, 2), "text": t.text})
+        return rows[-limit:]
