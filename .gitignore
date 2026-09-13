@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+sue_memory.json
+sue_state.json
+sue_memory.json.tmp
+sue_state.json.tmp
+.DS_Store
