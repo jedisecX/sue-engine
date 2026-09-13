@@ -39,6 +39,7 @@ class State:
     created: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
     last_intent: str = ""
     unresolved: list[str] = field(default_factory=list)
+    wire: list[str] = field(default_factory=list)
 
     def decay_toward(self, p) -> None:
         e = p.elasticity
@@ -84,6 +85,9 @@ class State:
             self.warmth = _clamp(self.warmth + 0.02)
         elif intent == "connect":
             self.confidence = _clamp(self.confidence + 0.03)
+        elif intent == "recall":
+            self.curiosity = _clamp(self.curiosity + 0.03)
+            self.confidence = _clamp(self.confidence + 0.02)
         self.energy = _clamp(self.energy - 0.015)
         if parsed_features.get("hostility", 0) > 0.5:
             self.warmth = _clamp(self.warmth - 0.1)
@@ -91,39 +95,28 @@ class State:
 
     def public_summary(self) -> dict[str, Any]:
         return {
-            "warmth": round(self.warmth, 3),
-            "curiosity": round(self.curiosity, 3),
-            "confidence": round(self.confidence, 3),
-            "energy": round(self.energy, 3),
-            "play": round(self.play, 3),
-            "contrarian": round(self.contrarian, 3),
-            "topic": self.topic,
-            "turn": self.turn,
-            "session": self.session,
+            "warmth": round(self.warmth, 3), "curiosity": round(self.curiosity, 3),
+            "confidence": round(self.confidence, 3), "energy": round(self.energy, 3),
+            "play": round(self.play, 3), "contrarian": round(self.contrarian, 3),
+            "topic": self.topic, "turn": self.turn, "session": self.session,
             "last_intent": self.last_intent,
             "goals": [g.text for g in self.goals[:5]],
             "unresolved": list(self.unresolved[-5:]),
+            "wire": list(self.wire[:5]),
         }
 
     def to_json(self) -> dict[str, Any]:
         return {
-            "warmth": self.warmth,
-            "curiosity": self.curiosity,
-            "confidence": self.confidence,
-            "energy": self.energy,
-            "play": self.play,
-            "contrarian": self.contrarian,
-            "hidden": list(self.hidden),
-            "topic": self.topic,
-            "last_user": self.last_user,
-            "last_sue": self.last_sue,
+            "warmth": self.warmth, "curiosity": self.curiosity, "confidence": self.confidence,
+            "energy": self.energy, "play": self.play, "contrarian": self.contrarian,
+            "hidden": list(self.hidden), "topic": self.topic,
+            "last_user": self.last_user, "last_sue": self.last_sue,
             "last_user_tokens": list(self.last_user_tokens),
             "goals": [{"text": g.text, "urgency": g.urgency, "origin": g.origin} for g in self.goals],
-            "turn": self.turn,
-            "session": self.session,
-            "created": self.created,
+            "turn": self.turn, "session": self.session, "created": self.created,
             "last_intent": self.last_intent,
             "unresolved": list(self.unresolved),
+            "wire": list(self.wire[:12]),
         }
 
     @classmethod
@@ -157,6 +150,7 @@ class State:
                 created=str(data.get("created", base.created)),
                 last_intent=str(data.get("last_intent", "")),
                 unresolved=[str(x) for x in (data.get("unresolved") or [])][-20:],
+                wire=[str(x) for x in (data.get("wire") or [])][-12:],
             )
         except (TypeError, ValueError):
             return base
