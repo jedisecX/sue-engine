@@ -54,8 +54,22 @@ def parse(text: str, stop: frozenset[str], last_tokens: list[str] | None = None)
         topic_hint = sorted(content, key=len, reverse=True)[0]
 
     news_ask = 1.0 if (
-        set(tokens) & {"news", "feed", "feeds", "headline", "headlines", "wire", "rss", "ingest"}
-        or any(w in raw.lower() for w in ("what's on the wire", "what is on the wire", "any news", "recall the"))
+        set(tokens) & {"news", "feed", "feeds", "headline", "headlines", "wire", "rss", "ingest", "brief"}
+        or any(
+            w in raw.lower()
+            for w in (
+                "what's on the wire",
+                "what is on the wire",
+                "any news",
+                "recall the",
+                "what's happening",
+                "what is happening",
+                "tell me about the",
+                "on the wire",
+                "the headline",
+                "brief me",
+            )
+        )
     ) else 0.0
     low = raw.lower()
     word_ask = 1.0 if (
