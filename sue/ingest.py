@@ -78,7 +78,6 @@ def parse_feed(xml_text: str, source_tag: str) -> list[Item]:
         root = ET.fromstring(xml_text)
     except ET.ParseError:
         return []
-
     tag = root.tag.lower()
     items: list[Item] = []
     if tag.endswith("rss") or tag.endswith("rdf"):
@@ -95,9 +94,7 @@ def parse_feed(xml_text: str, source_tag: str) -> list[Item]:
     else:
         for node in root.findall("atom:entry", NS) or root.findall("entry"):
             title = _text(node.find("atom:title", NS)) or _text(node.find("title"))
-            link_el = node.find("atom:link", NS)
-            if link_el is None:
-                link_el = node.find("link")
+            link_el = node.find("atom:link", NS) or node.find("link")
             href = ""
             if link_el is not None:
                 href = link_el.get("href") or _text(link_el)
@@ -105,9 +102,8 @@ def parse_feed(xml_text: str, source_tag: str) -> list[Item]:
             summary = _text(node.find("atom:summary", NS)) or _text(node.find("summary"))
             if not summary:
                 summary = _text(node.find("atom:content", NS)) or _text(node.find("content"))
-            if not title:
-                continue
-            items.append(Item(guid=ident, title=title, summary=summary, link=href, source=source_tag))
+            if title:
+                items.append(Item(guid=ident, title=title, summary=summary, link=href, source=source_tag))
     return items
 
 
@@ -120,11 +116,7 @@ def default_fetch(url: str, timeout: float = 8.0) -> str:
     path = Path(url)
     if path.exists():
         return path.read_text(encoding="utf-8", errors="replace")
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "SueEngine/2.0 (+local; rss-ingest)"},
-        method="GET",
-    )
+    req = urllib.request.Request(url, headers={"User-Agent": "SueEngine/2.0 (+local; rss-ingest)"}, method="GET")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read()
     return raw.decode("utf-8", errors="replace")
@@ -142,13 +134,7 @@ def load_feeds(path: Path) -> list[FeedSpec]:
     for row in rows:
         if not isinstance(row, dict) or not row.get("url"):
             continue
-        out.append(
-            FeedSpec(
-                url=str(row["url"]),
-                tag=str(row.get("tag") or "wire"),
-                max_items=max(1, min(20, int(row.get("max") or row.get("max_items") or 8))),
-            )
-        )
+        out.append(FeedSpec(url=str(row["url"]), tag=str(row.get("tag") or "wire"), max_items=max(1, min(20, int(row.get("max") or row.get("max_items") or 8)))))
     return out
 
 
@@ -171,21 +157,13 @@ def _line(item: Item) -> str:
     return f"news: {item.source} · {item.title}"
 
 
-def ingest(
-    memory: Memory,
-    feeds: list[FeedSpec],
-    *,
-    fetch: FetchFn | None = None,
-    state: State | None = None,
-    cap_total: int = 12,
-) -> IngestReport:
+def ingest(memory: Memory, feeds: list[FeedSpec], *, fetch: FetchFn | None = None, state: State | None = None, cap_total: int = 12) -> IngestReport:
     report = IngestReport(feeds=len(feeds))
     if not feeds:
         return report
     fetch = fetch or default_fetch
     seen = _seen_keys(memory)
     topic_tokens = set(tokenize(state.topic)) if state and state.topic else set()
-
     for spec in feeds:
         try:
             xml_text = fetch(spec.url)
@@ -204,21 +182,23 @@ def ingest(
             if key in seen or compact in seen or line.lower() in seen:
                 report.skipped += 1
                 continue
-            imp = 0.42
-            bag = set(tokenize(item.title + " " + item.summary))
-            if topic_tokens and bag & topic_tokens:
-                imp = 0.62
+            imp = 0.62 if topic_tokens and set(tokenize(item.title + " " + item.summary)) & topic_tokens else 0.42
             tr = memory.add(line, kind="news", importance=imp)
-            guid_tok = "guid:" + re.sub(r"[^a-z0-9]+", "", key)[:40]
+            guid_tok = "guid:" + compact[:40]
             if guid_tok not in tr.tokens:
                 tr.tokens.append(guid_tok)
             seen.add(key)
             seen.add(compact)
             seen.add(line.lower())
             report.stored += 1
-            if state and topic_tokens and bag & topic_tokens:
-                gtext = f"understand {spec.tag} on {state.topic}"
-                if not any(g.text == gtext for g in state.goals):
-                    state.goals.append(Goal(text=gtext, urgency=0.35, origin="news"))
-                    state.goals = state.goals[-8:]
+            if state:
+                if item.title not in state.wire:
+                    state.wire.append(item.title)
+                    state.wire = state.wire[-12:]
+                bag = set(tokenize(item.title + " " + item.summary))
+                if topic_tokens and bag & topic_tokens:
+                    gtext = f"understand {spec.tag} on {state.topic}"
+                    if not any(g.text == gtext for g in state.goals):
+                        state.goals.append(Goal(text=gtext, urgency=0.35, origin="news"))
+                        state.goals = state.goals[-8:]
     return report
