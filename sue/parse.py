@@ -52,7 +52,10 @@ def parse(text: str, stop: frozenset[str], last_tokens: list[str] | None = None)
     topic_hint = content[0] if content else (tokens[0] if tokens else "")
     if len(content) >= 2:
         topic_hint = sorted(content, key=len, reverse=True)[0]
-
+    news_ask = 1.0 if (
+        set(tokens) & {"news", "feed", "feeds", "headline", "headlines", "wire", "rss", "ingest"}
+        or any(w in raw.lower() for w in ("what's on the wire", "what is on the wire", "any news", "recall the"))
+    ) else 0.0
     features = {
         "question": 1.0 if question else 0.0,
         "negation": 1.0 if negation else 0.0,
@@ -65,14 +68,9 @@ def parse(text: str, stop: frozenset[str], last_tokens: list[str] | None = None)
         "self": 1.0 if (SELF & set(tokens)) else 0.0,
         "other": 1.0 if (OTHER & set(tokens)) else 0.0,
         "empty": 1.0 if not tokens else 0.0,
+        "news_ask": news_ask,
     }
     return Parsed(
-        raw=raw,
-        tokens=tokens,
-        content=content,
-        question=question,
-        negation=negation,
-        unusual=unusual,
-        features=features,
-        topic_hint=topic_hint,
+        raw=raw, tokens=tokens, content=content, question=question,
+        negation=negation, unusual=unusual, features=features, topic_hint=topic_hint,
     )
