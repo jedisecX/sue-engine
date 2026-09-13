@@ -1,0 +1,10 @@
+{
+  "class": {
+    "bayou": "noun",
+    "parish": "noun"
+  },
+  "neighbors": {
+    "river": ["bayou", "parish"],
+    "town": ["parish", "bayou"]
+  }
+}

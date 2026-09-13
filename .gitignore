@@ -9,3 +9,5 @@ sue_memory.json.tmp
 sue_state.json.tmp
 .DS_Store
 feeds.json
+lexicon.json
+lexicon.json.tmp
