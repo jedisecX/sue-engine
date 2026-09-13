@@ -10,50 +10,29 @@ python3 sue.py
 
 Requires Python 3.10+ and the standard library only.
 
-## What she is
-
-Sue is a pipeline:
-
-```
-user input
-    -> parse (features, content words)
-    -> memory retrieve (relevance, not full dump)
-    -> internal state (floats + 12-d hidden vector)
-    -> candidate thoughts (structured, not sentences)
-    -> evaluation against personality parameters
-    -> softmax sample a winner
-    -> compositional realization
-    -> update state + memory
-```
-
-Personality is parameters and lexical parts. Responses are assembled.
-There is no `if user says X: return Y` path that chooses the spoken line.
-
 ## Commands
 
-- `/state` public state summary
-- `/memory` recent traces
-- `/forget` wipe traces, name, goals
-- `/reset` new session; keep long-term memory
-- `/summary` toggle the short thought tag
-- `/help` rails
-- `/quit` save and exit
+- `/state` `/memory` `/reset` `/summary` `/help` `/quit`
+- `/forget` wipe traces; `/forget news` drop only news
+- `/feeds` list RSS sources from `feeds.json`
+- `/ingest` pull feeds into `kind=news` memory traces
 
-Commands are plumbing. They are not her personality.
-
-## Tests
+## RSS (optional, offline-safe)
 
 ```bash
-python3 tests/test_sue.py
+cp feeds.example.json feeds.json
 ```
 
-## Limitations
+`sue/ingest.py` uses stdlib urllib + xml. Fetch is not called from `respond()`.
+Tests use `tests/fixtures/sample_rss.xml` and never touch the network.
 
-No large language model. Vocabulary is banks + user tokens + stored traces.
-English-only shallow parse. She is not conscious or sentient.
+```bash
+python3 tests/test_sue.py tests/test_ingest.py
+```
 
 ## Files
 
 - `sue.py` launcher
-- `sue/` package
-- `tests/test_sue.py`
+- `sue/` package including `ingest.py`
+- `feeds.example.json`
+- `tests/`
