@@ -10,9 +10,12 @@ from .engine import Sue
 HELP = """commands
   /state     public state summary
   /memory    recent traces
-  /forget    wipe traces, name, goals
-  /reset     new session, keep long-term memory
-  /summary   toggle short thought tag
+  /forget          wipe traces, name, goals
+  /forget news     drop only news traces
+  /feeds           list configured RSS sources
+  /ingest          pull feeds into memory (needs feeds.json)
+  /reset           new session, keep long-term memory
+  /summary         toggle short thought tag
   /help
   /quit
 talk in ordinary sentences. commands are plumbing, not her voice.
@@ -70,9 +73,42 @@ def handle_command(sue: Sue, line: str) -> bool:
         for r in rows:
             print(c(GRAY, f"  [{r['id']}:{r['kind']}|{r['importance']}] {r['text']}"))
         return True
-    if cmd == "/forget":
-        sue.forget()
-        print(c(GRAY, "  traces cleared."))
+    if cmd.startswith("/forget"):
+        parts = line.strip().split()
+        if len(parts) > 1:
+            kind = parts[1].lower()
+            n = sue.forget(kind)
+            print(c(GRAY, f"  dropped {n} {kind} traces."))
+        else:
+            sue.forget()
+            print(c(GRAY, "  traces cleared."))
+        return True
+    if cmd == "/feeds":
+        from .ingest import load_feeds
+
+        path = sue.memory.path.with_name("feeds.json")
+        feeds = load_feeds(path)
+        if not feeds:
+            print(c(GRAY, f"  no feeds. copy feeds.example.json to {path.name}"))
+            return True
+        for f in feeds:
+            print(c(GRAY, f"  {f.tag:12} {f.max_items:2}  {f.url}"))
+        return True
+    if cmd == "/ingest":
+        report, feeds = sue.ingest_feeds()
+        if not feeds:
+            print(c(GRAY, "  no feeds.json beside the memory file."))
+            return True
+        err = f"  errors: {len(report.errors)}" if report.errors else ""
+        print(
+            c(
+                GRAY,
+                f"  ingested {report.stored}  skipped {report.skipped}  "
+                f"feeds {report.fetched}/{report.feeds}{err}",
+            )
+        )
+        for e in (report.errors or [])[:4]:
+            print(c(GRAY, f"  ! {e}"))
         return True
     if cmd == "/reset":
         sue.reset_session()
