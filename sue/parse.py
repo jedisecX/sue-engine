@@ -76,6 +76,19 @@ def parse(text: str, stop: frozenset[str], last_tokens: list[str] | None = None)
         set(tokens) & {"word", "words", "mean", "meaning", "lexicon", "dictionary"}
         or any(p in low for p in ("what does", "remember the word", "that word", "from the lexicon"))
     ) else 0.0
+    code_ask = 1.0 if (
+        set(tokens) & {"script", "scripts", "python", "code", "module", "stdlib", "program"}
+        or any(
+            p in low
+            for p in (
+                "write a script",
+                "write me a",
+                "make a script",
+                "coding library",
+                "python script",
+            )
+        )
+    ) else 0.0
 
     features = {
         "question": 1.0 if question else 0.0,
@@ -91,6 +104,7 @@ def parse(text: str, stop: frozenset[str], last_tokens: list[str] | None = None)
         "empty": 1.0 if not tokens else 0.0,
         "news_ask": news_ask,
         "word_ask": word_ask,
+        "code_ask": code_ask,
     }
     return Parsed(
         raw=raw,
